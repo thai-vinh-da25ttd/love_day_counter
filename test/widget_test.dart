@@ -8,7 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:love_day_counter/main.dart';
+import 'package:love_day_counter/main_old.dart';
 
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
