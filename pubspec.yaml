@@ -1,7 +1,7 @@
 name: love_day_counter
 description: "Ung dung dem ngay yeu - dung ca nhan"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -17,7 +17,11 @@ dependencies:
   shared_preferences: ^2.3.2   # Lưu ngày bắt đầu, tên, đường dẫn ảnh vào bộ nhớ máy
   image_picker: ^1.1.2         # Chọn ảnh đại diện từ thư viện ảnh trên điện thoại
   path_provider: ^2.1.4        # Lấy thư mục lưu trữ nội bộ để copy ảnh đã chọn vào app
-  intl: ^0.20.3               # Định dạng ngày tháng kiểu dd/MM/yyyy
+  intl: ^0.20.3                # Định dạng ngày tháng kiểu dd/MM/yyyy
+  
+  # Thêm 2 dòng này cho phần đăng nhập Google
+  google_sign_in: ^6.2.1
+  firebase_auth: ^4.17.8
 
 dev_dependencies:
   flutter_test:

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1014933764619",
+    "project_id": "love-day-counter-d127",
+    "storage_bucket": "love-day-counter-d127.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1014933764619:android:4c9e33578ce03c0aa6a50e",
+        "android_client_info": {
+          "package_name": "com.example.love_day_counter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAs7S7ggjNBGaG_QiAVmbi5s2VLsRVUVa8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

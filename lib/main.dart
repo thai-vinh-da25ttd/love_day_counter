@@ -5,12 +5,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
+final GoogleSignIn googleSignIn = GoogleSignIn();
 
 void main() {
   runApp(const LoveCounterApp());
 }
 
-/// Widget gốc của ứng dụng - cấu hình theme màu hồng/đỏ nhẹ nhàng
 class LoveCounterApp extends StatelessWidget {
   const LoveCounterApp({super.key});
 
@@ -19,7 +21,6 @@ class LoveCounterApp extends StatelessWidget {
     return MaterialApp(
       title: 'Chúng ta đã bên nhau',
       debugShowCheckedModeBanner: false,
-      // Đặt tiếng Việt làm ngôn ngữ mặc định (để DatePicker hiện đúng tiếng Việt)
       locale: const Locale('vi', 'VN'),
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
@@ -32,25 +33,179 @@ class LoveCounterApp extends StatelessWidget {
       ],
       theme: ThemeData(
         useMaterial3: true,
-        colorSchemeSeed: const Color(0xFFE75480), // tông hồng/đỏ chủ đạo
+        colorSchemeSeed: const Color(0xFFE75480),
         scaffoldBackgroundColor: Colors.white,
         fontFamily: 'Roboto',
       ),
-      home: const HomeScreen(),
+      home: const AuthWrapper(),
     );
   }
 }
 
+// ================= MÀN HÌNH KIỂM TRA TRẠNG THÁI ĐĂNG NHẬP =================
+class AuthWrapper extends StatefulWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  GoogleSignInAccount? _user;
+  bool _checkingAuth = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Lắng nghe sự kiện đăng nhập / đăng xuất
+    googleSignIn.onCurrentUserChanged.listen((account) {
+      if (mounted) {
+        setState(() {
+          _user = account;
+          _checkingAuth = false;
+        });
+      }
+    });
+
+    // Tự động kiểm tra xem đã từng đăng nhập trước đó chưa
+    googleSignIn.signInSilently().then((account) {
+      if (mounted) {
+        setState(() {
+          _user = account;
+          _checkingAuth = false;
+        });
+      }
+    }).catchError((_) {
+      if (mounted) {
+        setState(() => _checkingAuth = false);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_checkingAuth) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Nếu chưa đăng nhập -> Hiện màn hình Login
+    // Nếu đã đăng nhập -> Vào thẳng màn hình Home
+    if (_user == null) {
+      return const LoginScreen();
+    } else {
+      return HomeScreen(user: _user!);
+    }
+  }
+}
+
+// ================= MÀN HÌNH ĐĂNG NHẬP (LOGIN SCREEN) =================
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  bool _isLoggingIn = false;
+
+  Future<void> _handleSignIn() async {
+    setState(() => _isLoggingIn = true);
+    try {
+      await googleSignIn.signIn();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Đăng nhập thất bại: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoggingIn = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFFFF0F3), Colors.white],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.favorite,
+                size: 80,
+                color: Color(0xFFE75480),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Love Day Counter',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFB03052),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Đăng nhập để xem số ngày bên nhau',
+                style: TextStyle(fontSize: 15, color: Colors.black54),
+              ),
+              const SizedBox(height: 48),
+              _isLoggingIn
+                  ? const CircularProgressIndicator()
+                  : ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black87,
+                        elevation: 2,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                      ),
+                      icon: Image.network(
+                        'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg',
+                        height: 22,
+                        width: 22,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(Icons.account_circle),
+                      ),
+                      label: const Text(
+                        'Đăng nhập bằng Google',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                      onPressed: _handleSignIn,
+                    ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ================= MÀN HÌNH CHÍNH (HOME SCREEN) =================
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final GoogleSignInAccount user;
+  const HomeScreen({super.key, required this.user});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // ----- Trạng thái mặc định (dùng khi lần đầu mở app) -----
-  DateTime _startDate = DateTime(2024, 2, 17); // mốc ngày mặc định 17/02/2024
+  DateTime _startDate = DateTime(2024, 2, 17);
   String _name1 = 'Anh';
   String _name2 = 'Em';
   String? _imagePath1;
@@ -60,13 +215,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final ImagePicker _picker = ImagePicker();
 
-  // Danh sách nền (gradient 2 màu) để người dùng chọn thay đổi
   final List<List<Color>> _backgrounds = [
-    [const Color(0xFFFFF0F3), Colors.white], // hồng nhạt
-    [const Color(0xFFFFE1E6), const Color(0xFFFFF6F8)], // hồng phấn
-    [const Color(0xFFFFD6D6), Colors.white], // đỏ nhạt
-    [const Color(0xFFE8D9FF), const Color(0xFFFFF6F8)], // tím pastel
-    [const Color(0xFFD9E8FF), Colors.white], // xanh pastel
+    [const Color(0xFFFFF0F3), Colors.white],
+    [const Color(0xFFFFE1E6), const Color(0xFFFFF6F8)],
+    [const Color(0xFFFFD6D6), Colors.white],
+    [const Color(0xFFE8D9FF), const Color(0xFFFFF6F8)],
+    [const Color(0xFFD9E8FF), Colors.white],
   ];
 
   @override
@@ -75,20 +229,24 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadData();
   }
 
-  // ================= LƯU / ĐỌC DỮ LIỆU (shared_preferences) =================
-
-  // Đọc toàn bộ dữ liệu đã lưu khi mở app
   Future<void> _loadData() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
+
+    // Ưu tiên lấy tên và avatar từ tài khoản Google đã đăng nhập
+    String savedName1 =
+        prefs.getString('name1') ?? widget.user.displayName ?? 'Anh';
+    String? savedImage1 =
+        prefs.getString('image1_path') ?? widget.user.photoUrl;
+
     setState(() {
       final savedMillis = prefs.getInt('start_date');
       _startDate = savedMillis != null
           ? DateTime.fromMillisecondsSinceEpoch(savedMillis)
           : DateTime(2024, 2, 17);
-      _name1 = prefs.getString('name1') ?? 'Anh';
+      _name1 = savedName1;
       _name2 = prefs.getString('name2') ?? 'Em';
-      _imagePath1 = prefs.getString('image1_path');
+      _imagePath1 = savedImage1;
       _imagePath2 = prefs.getString('image2_path');
       _bgColorIndex = prefs.getInt('bg_color_index') ?? 0;
       _isLoading = false;
@@ -116,10 +274,10 @@ class _HomeScreenState extends State<HomeScreen> {
     await prefs.setInt('bg_color_index', index);
   }
 
-  // ================= CÁC HÀNH ĐỘNG NGƯỜI DÙNG =================
+  Future<void> _handleSignOut() async {
+    await googleSignIn.disconnect();
+  }
 
-  // Chọn ảnh từ thư viện, copy vào thư mục nội bộ của app để không bị mất
-  // (ảnh gốc image_picker trả về nằm ở cache, có thể bị hệ thống dọn dẹp)
   Future<void> _pickImage(int person) async {
     final XFile? picked =
         await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
@@ -128,8 +286,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final appDir = await getApplicationDocumentsDirectory();
     final fileName =
         'avatar_$person${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final savedImage =
-        await File(picked.path).copy('${appDir.path}/$fileName');
+    final savedImage = await File(picked.path).copy('${appDir.path}/$fileName');
 
     if (!mounted) return;
     setState(() {
@@ -142,7 +299,6 @@ class _HomeScreenState extends State<HomeScreen> {
     await _saveImagePath(person, savedImage.path);
   }
 
-  // Mở DatePicker để chọn lại ngày bắt đầu yêu
   Future<void> _pickStartDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -159,7 +315,6 @@ class _HomeScreenState extends State<HomeScreen> {
     await _saveStartDate(picked);
   }
 
-  // Hộp thoại chỉnh sửa tên của 1 người
   Future<void> _editName(int person) async {
     final controller =
         TextEditingController(text: person == 1 ? _name1 : _name2);
@@ -196,7 +351,6 @@ class _HomeScreenState extends State<HomeScreen> {
     await _saveNames();
   }
 
-  // Tính chính xác "X năm Y tháng Z ngày" giữa 2 mốc thời gian (không chỉ chia đơn giản)
   Map<String, int> _calculateDuration(DateTime start, DateTime end) {
     int years = end.year - start.year;
     int months = end.month - start.month;
@@ -214,26 +368,35 @@ class _HomeScreenState extends State<HomeScreen> {
     return {'years': years, 'months': months, 'days': days};
   }
 
-  // ================= GIAO DIỆN =================
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // Chỉ tính theo ngày (bỏ qua giờ/phút) để số ngày luôn tròn và chính xác
     final now = DateTime.now();
-    final startOnly = DateTime(_startDate.year, _startDate.month, _startDate.day);
+    final startOnly =
+        DateTime(_startDate.year, _startDate.month, _startDate.day);
     final nowOnly = DateTime(now.year, now.month, now.day);
 
-    // ---- LOGIC CHÍNH: lấy hiện tại trừ ngày bắt đầu ----
     final totalDays = nowOnly.difference(startOnly).inDays;
     final duration = _calculateDuration(startOnly, nowOnly);
 
     final bgColors = _backgrounds[_bgColorIndex];
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.black54),
+            tooltip: 'Đăng xuất',
+            onPressed: _handleSignOut,
+          ),
+        ],
+      ),
+      extendBodyBehindAppBar: true,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -259,7 +422,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 32),
 
-                // ----- Hai ảnh đại diện (chạm để đổi ảnh) -----
+                // ----- Ảnh đại diện -----
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -274,7 +437,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                // ----- Tên hai người (chạm để chỉnh sửa) -----
+                // ----- Tên hai người -----
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -288,7 +451,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 40),
 
-                // ----- Số ngày yêu (kết quả tính toán chính) -----
+                // ----- Số ngày yêu -----
                 Text(
                   '$totalDays',
                   style: const TextStyle(
@@ -307,12 +470,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 32),
 
-                // ----- Ngày bắt đầu (chạm để đổi ngày) -----
+                // ----- Ngày bắt đầu -----
                 GestureDetector(
                   onTap: _pickStartDate,
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.7),
                       borderRadius: BorderRadius.circular(20),
@@ -332,7 +495,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 40),
+                const SizedBox(height: 32),
 
                 // ----- Chọn màu nền -----
                 const Text('Nền',
@@ -356,8 +519,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           shape: BoxShape.circle,
                           gradient: LinearGradient(colors: colors),
                           border: Border.all(
-                            color:
-                                selected ? const Color(0xFFE75480) : Colors.white,
+                            color: selected
+                                ? const Color(0xFFE75480)
+                                : Colors.white,
                             width: selected ? 3 : 1,
                           ),
                         ),
@@ -365,6 +529,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   }),
                 ),
+
                 const SizedBox(height: 20),
               ],
             ),
@@ -374,22 +539,29 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Widget avatar tròn - hiện ảnh đã chọn hoặc icon placeholder
   Widget _buildAvatar(String? path, VoidCallback onTap) {
+    ImageProvider? imageProvider;
+    if (path != null && path.isNotEmpty) {
+      if (path.startsWith('http://') || path.startsWith('https://')) {
+        imageProvider = NetworkImage(path);
+      } else {
+        imageProvider = FileImage(File(path));
+      }
+    }
+
     return GestureDetector(
       onTap: onTap,
       child: CircleAvatar(
         radius: 48,
         backgroundColor: Colors.white,
-        backgroundImage: path != null ? FileImage(File(path)) : null,
-        child: path == null
+        backgroundImage: imageProvider,
+        child: imageProvider == null
             ? const Icon(Icons.add_a_photo, color: Color(0xFFE75480), size: 28)
             : null,
       ),
     );
   }
 
-  // Widget nhãn tên dạng "chip" bo tròn
   Widget _buildNameChip(String name, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
