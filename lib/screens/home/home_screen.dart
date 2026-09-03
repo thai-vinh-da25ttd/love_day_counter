@@ -204,8 +204,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       me: couple.memberFor(_user.uid),
                       partner: couple.partnerFor(_user.uid),
                       onEditMeAvatar: () => _editAvatar(couple, _user.uid),
-                      onEditMeNickname: () =>
-                          _editNickname(couple, _user.uid),
+                      onEditMeNickname: () => _editNickname(couple, _user.uid),
                     ),
                     const SizedBox(height: 24),
                     LoveButton(
@@ -278,7 +277,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 }
 
-
 class AppLockOverlay extends StatefulWidget {
   const AppLockOverlay({super.key});
 
@@ -342,9 +340,15 @@ class _AppLockOverlayState extends State<AppLockOverlay> {
               children: [
                 const Icon(Icons.lock_rounded, color: Colors.white, size: 64),
                 const SizedBox(height: 16),
-                const Text('Love Day Counter đang khoá', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                const Text('Love Day Counter đang khoá',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                const Text('Nhập PIN hoặc dùng vân tay / khuôn mặt.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
+                const Text('Nhập PIN hoặc dùng vân tay / khuôn mặt.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70)),
                 const SizedBox(height: 24),
                 TextField(
                   controller: _pin,
@@ -353,15 +357,31 @@ class _AppLockOverlayState extends State<AppLockOverlay> {
                   obscureText: true,
                   maxLength: 6,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white, fontSize: 28, letterSpacing: 8),
-                  decoration: const InputDecoration(hintText: '••••', hintStyle: TextStyle(color: Colors.white38), counterText: '', enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white38))),
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 28, letterSpacing: 8),
+                  decoration: const InputDecoration(
+                      hintText: '••••',
+                      hintStyle: TextStyle(color: Colors.white38),
+                      counterText: '',
+                      enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white38))),
                   onSubmitted: (_) => _pinUnlock(),
                 ),
                 const SizedBox(height: 16),
-                SizedBox(width: double.infinity, child: FilledButton(onPressed: _busy ? null : _pinUnlock, child: const Text('Mở khoá'))),
+                SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                        onPressed: _busy ? null : _pinUnlock,
+                        child: const Text('Mở khoá'))),
                 const SizedBox(height: 8),
-                OutlinedButton.icon(onPressed: _busy ? null : _bio, icon: const Icon(Icons.fingerprint), label: const Text('Dùng sinh trắc học')),
-                TextButton(onPressed: _busy ? null : _forgot, child: const Text('Quên PIN? Đăng nhập Google để khôi phục')),
+                OutlinedButton.icon(
+                    onPressed: _busy ? null : _bio,
+                    icon: const Icon(Icons.fingerprint),
+                    label: const Text('Dùng sinh trắc học')),
+                TextButton(
+                    onPressed: _busy ? null : _forgot,
+                    child:
+                        const Text('Quên PIN? Đăng nhập Google để khôi phục')),
               ],
             ),
           ),

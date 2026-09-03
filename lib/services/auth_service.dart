@@ -6,7 +6,12 @@ class AuthService {
   static final AuthService instance = AuthService._();
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+
+  // Đã thêm serverClientId vào đây
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    serverClientId:
+        '1014933764619-er977ds92c2qa9rhc3si7oehipjrgdu5.apps.googleusercontent.com',
+  );
 
   User? get currentUser => _auth.currentUser;
 
