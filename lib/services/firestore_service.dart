@@ -61,6 +61,11 @@ class FirestoreService {
       'createdAt': FieldValue.serverTimestamp(),
     });
 
+    await db.collection('pair_codes').doc(pairCode).set({
+      'coupleId': coupleId,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
     await userRef(user.uid).set({
       'email': user.email ?? '',
       'displayName': user.displayName ?? '',
@@ -77,16 +82,16 @@ class FirestoreService {
     required String pairCode,
     required String nickname,
   }) async {
-    final query = await db
-        .collection('couples')
-        .where('pairCode', isEqualTo: pairCode)
-        .limit(1)
-        .get();
+    final codeSnap = await db.collection('pair_codes').doc(pairCode).get();
+    if (!codeSnap.exists) return null;
 
-    if (query.docs.isEmpty) return null;
+    final coupleId = codeSnap.data()?['coupleId']?.toString();
+    if (coupleId == null || coupleId.isEmpty) return null;
 
-    final couple = query.docs.first;
-    final data = couple.data();
+    final couple = await coupleRef(coupleId).get();
+    if (!couple.exists) return null;
+
+    final data = couple.data() ?? {};
     final memberIds = List<String>.from(data['memberIds'] ?? const []);
 
     if (memberIds.contains(user.uid)) {

@@ -26,6 +26,19 @@ class AuthService {
     return _auth.signInWithCredential(credential);
   }
 
+  Future<void> reauthenticateWithGoogle() async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Chưa đăng nhập.');
+    final account = await _googleSignIn.signIn();
+    if (account == null) throw Exception('Đã huỷ xác thực.');
+    final auth = await account.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: auth.accessToken,
+      idToken: auth.idToken,
+    );
+    await user.reauthenticateWithCredential(credential);
+  }
+
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _auth.signOut();

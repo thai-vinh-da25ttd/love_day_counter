@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../repositories/couple_repository.dart';
 import '../../services/auth_service.dart';
@@ -22,6 +23,11 @@ class LoginScreen extends StatelessWidget {
       final couple = await CoupleRepository.instance.getCurrentCouple(user.uid);
 
       if (!context.mounted) return;
+
+      if (couple != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('current_couple_id', couple.id);
+      }
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(

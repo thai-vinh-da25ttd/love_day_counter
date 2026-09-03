@@ -91,7 +91,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
   Future<void> _toggleBiometric(bool value) async {
     if (value) {
       final available =
-          await BiometricService.instance.isDeviceSupported();
+          await BiometricService.instance.canCheckBiometrics();
 
       if (!available) {
         if (!mounted) return;

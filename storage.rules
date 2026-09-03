@@ -1,0 +1,31 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() { return request.auth != null; }
+    function isMember(coupleId) {
+      return signedIn()
+        && request.auth.uid in firestore.get(/databases/(default)/documents/couples/$(coupleId)).data.memberIds;
+    }
+
+    match /couples/{coupleId}/avatars/{uid}.jpg {
+      allow read: if isMember(coupleId);
+      allow write: if isMember(coupleId) && uid == request.auth.uid
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    match /couples/{coupleId}/background/background.jpg {
+      allow read: if isMember(coupleId);
+      allow write: if isMember(coupleId)
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    match /couples/{coupleId}/memories/{memoryId}.jpg {
+      allow read: if isMember(coupleId);
+      allow write: if isMember(coupleId)
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+  }
+}

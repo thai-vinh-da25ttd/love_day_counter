@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../repositories/couple_repository.dart';
 import '../home/home_screen.dart';
@@ -38,7 +39,10 @@ class _PairSetupScreenState extends State<PairSetupScreen> {
       );
 
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
+      final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('current_couple_id', coupleId);
+
+    Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => HomeScreen(coupleId: coupleId),
         ),
@@ -72,7 +76,10 @@ class _PairSetupScreenState extends State<PairSetupScreen> {
       }
 
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
+      final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('current_couple_id', coupleId);
+
+    Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => HomeScreen(coupleId: coupleId),
         ),

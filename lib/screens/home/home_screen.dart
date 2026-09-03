@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../services/app_lock_service.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../models/couple_model.dart';
@@ -34,8 +35,27 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      AppLockService.instance.lockIfEnabled();
+    }
+  }
 
   User get _user => FirebaseAuth.instance.currentUser!;
 
@@ -236,15 +256,117 @@ class _HomeScreenState extends State<HomeScreen> {
 
         final couple = CoupleModel.fromFirestore(snapshot.data!);
 
-        return Scaffold(
-          extendBody: _index == 0,
-          body: _buildContent(couple),
-          bottomNavigationBar: AppBottomNav(
-            currentIndex: _index,
-            onChanged: (value) => setState(() => _index = value),
+        return AnimatedBuilder(
+          animation: AppLockService.instance,
+          builder: (context, _) => Stack(
+            fit: StackFit.expand,
+            children: [
+              Scaffold(
+                extendBody: _index == 0,
+                body: _buildContent(couple),
+                bottomNavigationBar: AppBottomNav(
+                  currentIndex: _index,
+                  onChanged: (value) => setState(() => _index = value),
+                ),
+              ),
+              if (AppLockService.instance.locked) const AppLockOverlay(),
+            ],
           ),
         );
       },
+    );
+  }
+}
+
+
+class AppLockOverlay extends StatefulWidget {
+  const AppLockOverlay({super.key});
+
+  @override
+  State<AppLockOverlay> createState() => _AppLockOverlayState();
+}
+
+class _AppLockOverlayState extends State<AppLockOverlay> {
+  final _pin = TextEditingController();
+  bool _busy = false;
+
+  Future<void> _bio() async {
+    setState(() => _busy = true);
+    final ok = await AppLockService.instance.unlockWithBiometric();
+    if (mounted) setState(() => _busy = false);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Xác thực sinh trắc học thất bại.')),
+      );
+    }
+  }
+
+  Future<void> _pinUnlock() async {
+    if (_pin.text.length < 4) return;
+    setState(() => _busy = true);
+    final ok = await AppLockService.instance.unlockWithPin(_pin.text);
+    if (mounted) setState(() => _busy = false);
+    if (!ok && mounted) {
+      _pin.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('PIN không đúng.')),
+      );
+    }
+  }
+
+  Future<void> _forgot() async {
+    setState(() => _busy = true);
+    try {
+      await AppLockService.instance.recoverPinWithGoogle();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Khôi phục PIN thất bại: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black.withOpacity(.96),
+      child: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.lock_rounded, color: Colors.white, size: 64),
+                const SizedBox(height: 16),
+                const Text('Love Day Counter đang khoá', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                const Text('Nhập PIN hoặc dùng vân tay / khuôn mặt.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
+                const SizedBox(height: 24),
+                TextField(
+                  controller: _pin,
+                  enabled: !_busy,
+                  keyboardType: TextInputType.number,
+                  obscureText: true,
+                  maxLength: 6,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 28, letterSpacing: 8),
+                  decoration: const InputDecoration(hintText: '••••', hintStyle: TextStyle(color: Colors.white38), counterText: '', enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white38))),
+                  onSubmitted: (_) => _pinUnlock(),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(width: double.infinity, child: FilledButton(onPressed: _busy ? null : _pinUnlock, child: const Text('Mở khoá'))),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(onPressed: _busy ? null : _bio, icon: const Icon(Icons.fingerprint), label: const Text('Dùng sinh trắc học')),
+                TextButton(onPressed: _busy ? null : _forgot, child: const Text('Quên PIN? Đăng nhập Google để khôi phục')),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
