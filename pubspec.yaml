@@ -1,7 +1,7 @@
 name: love_day_counter
 description: "Ung dung dem ngay yeu - dung ca nhan"
 publish_to: 'none'
-version: 1.0.1+2
+version: 1.1.0+3
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -9,19 +9,20 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # Bắt buộc để showDatePicker hiển thị đúng tiếng Việt (tháng, thứ...)
   flutter_localizations:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
-  shared_preferences: ^2.3.2   # Lưu ngày bắt đầu, tên, đường dẫn ảnh vào bộ nhớ máy
-  image_picker: ^1.1.2         # Chọn ảnh đại diện từ thư viện ảnh trên điện thoại
-  path_provider: ^2.1.4        # Lấy thư mục lưu trữ nội bộ để copy ảnh đã chọn vào app
-  intl: ^0.20.3                # Định dạng ngày tháng kiểu dd/MM/yyyy
-  
-  # Thêm 2 dòng này cho phần đăng nhập Google
+  shared_preferences: ^2.3.2
+  image_picker: ^1.1.2
+  path_provider: ^2.1.4
+  intl: ^0.20.3
   google_sign_in: ^6.2.1
   firebase_auth: ^4.17.8
+  
+  # Thêm 2 thư viện Firebase mới
+  firebase_core: ^2.27.0
+  cloud_firestore: ^4.15.8
 
 dev_dependencies:
   flutter_test:
@@ -33,9 +34,3 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon/
-
-flutter_launcher_icons:
-  android: "ic_launcher"
-  ios: true
-  image_path: "assets/icon/icon_app.png"
-  min_sdk_android: 21
