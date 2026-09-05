@@ -1,12 +1,16 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../repositories/couple_repository.dart';
-import '../home/home_screen.dart';
 
 class PairSetupScreen extends StatefulWidget {
-  const PairSetupScreen({super.key});
+  /// Gọi sau khi tạo/tham gia cặp đôi thành công. AuthGate truyền vào đây
+  /// một callback để tự tra lại couple và điều hướng sang HomeScreen — màn
+  /// hình này không tự Navigator.push nữa để tránh trùng logic điều hướng
+  /// với AuthGate (và tránh chồng Route không cần thiết lên Navigator gốc).
+  final VoidCallback onPaired;
+
+  const PairSetupScreen({super.key, required this.onPaired});
 
   @override
   State<PairSetupScreen> createState() => _PairSetupScreenState();
@@ -32,21 +36,14 @@ class _PairSetupScreenState extends State<PairSetupScreen> {
 
     setState(() => _loading = true);
     try {
-      final coupleId = await CoupleRepository.instance.create(
+      await CoupleRepository.instance.create(
         user: _user,
         nickname: _nicknameController.text.trim(),
         startDate: _startDate,
       );
 
       if (!mounted) return;
-      final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('current_couple_id', coupleId);
-
-    Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => HomeScreen(coupleId: coupleId),
-        ),
-      );
+      widget.onPaired();
     } catch (e) {
       _showError(e.toString());
     } finally {
@@ -76,14 +73,7 @@ class _PairSetupScreenState extends State<PairSetupScreen> {
       }
 
       if (!mounted) return;
-      final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('current_couple_id', coupleId);
-
-    Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => HomeScreen(coupleId: coupleId),
-        ),
-      );
+      widget.onPaired();
     } catch (e) {
       _showError(e.toString());
     } finally {

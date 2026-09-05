@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../screens/auth/login_screen.dart';
+import '../screens/auth/auth_gate.dart';
 import 'theme.dart';
 
 class LoveDayCounterApp extends StatelessWidget {
@@ -12,7 +12,10 @@ class LoveDayCounterApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Love Day Counter',
       theme: AppTheme.light,
-      home: const LoginScreen(),
+      // AuthGate tự quyết định Login / Ghép đôi / Home dựa trên
+      // FirebaseAuth.authStateChanges() — sửa lỗi phải đăng nhập lại mỗi
+      // lần mở app.
+      home: const AuthGate(),
     );
   }
 }

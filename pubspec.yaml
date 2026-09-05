@@ -1,7 +1,7 @@
 name: love_day_counter
 description: "Ung dung dem ngay yeu - dung ca nhan"
 publish_to: 'none'
-version: 1.2.1+5
+version: 1.2.2+6
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -16,26 +16,26 @@ dependencies:
   image_picker: ^1.1.2
   path_provider: ^2.1.4
   intl: ^0.20.3
-  google_sign_in: ^6.2.1
+  google_sign_in: ^7.2.0
 
-  firebase_core: ^2.27.0
-  firebase_auth: ^4.17.8
-  cloud_firestore: ^4.15.8
-  firebase_storage: ^11.6.0
-  firebase_messaging: ^14.7.19
-  flutter_local_notifications: ^19.5.0
+  firebase_core: ^4.14.0
+  firebase_auth: ^6.6.1
+  cloud_firestore: ^6.9.0
+  firebase_storage: ^13.5.0
+  firebase_messaging: ^16.6.0
+  flutter_local_notifications: ^22.3.0
 
-  flutter_secure_storage: ^9.2.2
-  local_auth: ^2.3.0
-  home_widget: ^0.9.3
+  flutter_secure_storage: ^11.0.0
+  local_auth: ^3.0.2
+  home_widget: ^0.9.4
   uuid: ^4.5.1
   http: ^1.5.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
-  flutter_launcher_icons: ^0.13.1
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true

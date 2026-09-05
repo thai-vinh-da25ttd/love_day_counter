@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.love_day_counter"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

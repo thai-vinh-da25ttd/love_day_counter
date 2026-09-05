@@ -34,8 +34,10 @@ class NotificationService {
   Future<void> initialize(String uid) async {
     if (!_initialized) {
       const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+      
+      // Sửa: Thêm tên tham số `settings:` cho initialize
       await _local.initialize(
-        const InitializationSettings(android: android),
+        settings: const InitializationSettings(android: android),
       );
 
       final androidPlugin = _local.resolvePlatformSpecificImplementation<
@@ -81,11 +83,12 @@ class NotificationService {
     final title = notification?.title ?? message.data['title'] ?? 'Love Day ❤️';
     final body = notification?.body ?? message.data['body'] ?? 'Người ấy gửi yêu thương cho bạn.';
 
+    // Sửa: Thêm đầy đủ tên tham số `id:`, `title:`, `body:`, `notificationDetails:` cho show
     await _local.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      title,
-      body,
-      NotificationDetails(
+      id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title: title,
+      body: body,
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           'love_messages',
           'Gửi yêu thương',

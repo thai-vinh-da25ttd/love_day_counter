@@ -1,46 +1,36 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../repositories/couple_repository.dart';
 import '../../services/auth_service.dart';
-import '../../services/notification_service.dart';
-import 'pair_setup_screen.dart';
-import '../home/home_screen.dart';
 
-class LoginScreen extends StatelessWidget {
+/// Chỉ còn nhiệm vụ duy nhất: gọi đăng nhập Google.
+///
+/// Trước đây màn hình này tự lo luôn việc lấy couple, lưu SharedPreferences
+/// và Navigator.push sang PairSetupScreen/HomeScreen — bị trùng lặp logic
+/// với AuthGate. Giờ chỉ cần đăng nhập xong, AuthGate (đang lắng nghe
+/// authStateChanges() ở phía trên) sẽ tự động rebuild và điều hướng đúng
+/// màn hình, nên ở đây không cần Navigator gì cả.
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
-  Future<void> _login(BuildContext context) async {
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  bool _loading = false;
+
+  Future<void> _login() async {
+    setState(() => _loading = true);
     try {
-      final credential = await AuthService.instance.signInWithGoogle();
-      final user = credential?.user;
-
-      if (user == null || !context.mounted) return;
-
-      await NotificationService.instance.initialize(user.uid);
-
-      final couple = await CoupleRepository.instance.getCurrentCouple(user.uid);
-
-      if (!context.mounted) return;
-
-      if (couple != null) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('current_couple_id', couple.id);
-      }
-
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => couple == null
-              ? const PairSetupScreen()
-              : HomeScreen(coupleId: couple.id),
-        ),
-      );
+      await AuthService.instance.signInWithGoogle();
+      // Không Navigator.push ở đây — AuthGate sẽ tự chuyển màn hình.
     } catch (e) {
-      if (!context.mounted) return;
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Đăng nhập lỗi: $e')),
       );
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -74,8 +64,17 @@ class LoginScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 40),
                 FilledButton.icon(
-                  onPressed: () => _login(context),
-                  icon: const Icon(Icons.login),
+                  onPressed: _loading ? null : _login,
+                  icon: _loading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.login),
                   label: const Text('Đăng nhập bằng Google'),
                 ),
               ],

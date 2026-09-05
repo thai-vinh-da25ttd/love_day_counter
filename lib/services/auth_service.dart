@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'app_lock_service.dart';
 
 class AuthService {
   AuthService._();
@@ -7,25 +8,30 @@ class AuthService {
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Đã thêm serverClientId vào đây
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    serverClientId:
-        '1014933764619-er977ds92c2qa9rhc3si7oehipjrgdu5.apps.googleusercontent.com',
-  );
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+
+  static const String _serverClientId =
+      '1014933764619-er977ds92c2qa9rhc3si7oehipjrgdu5.apps.googleusercontent.com';
+
+  Future<void> _initializeGoogleSignIn() async {
+    await _googleSignIn.initialize(
+      serverClientId: _serverClientId,
+    );
+  }
 
   User? get currentUser => _auth.currentUser;
 
   Stream<User?> authStateChanges() => _auth.authStateChanges();
 
   Future<UserCredential?> signInWithGoogle() async {
-    final account = await _googleSignIn.signIn();
-    if (account == null) return null;
+    await _initializeGoogleSignIn();
 
-    final auth = await account.authentication;
+    final account = await _googleSignIn.authenticate();
+
+    final googleAuth = account.authentication;
 
     final credential = GoogleAuthProvider.credential(
-      accessToken: auth.accessToken,
-      idToken: auth.idToken,
+      idToken: googleAuth.idToken,
     );
 
     return _auth.signInWithCredential(credential);
@@ -33,18 +39,27 @@ class AuthService {
 
   Future<void> reauthenticateWithGoogle() async {
     final user = _auth.currentUser;
-    if (user == null) throw Exception('Chưa đăng nhập.');
-    final account = await _googleSignIn.signIn();
-    if (account == null) throw Exception('Đã huỷ xác thực.');
-    final auth = await account.authentication;
+
+    if (user == null) {
+      throw Exception('Chưa đăng nhập.');
+    }
+
+    await _initializeGoogleSignIn();
+
+    final account = await _googleSignIn.authenticate();
+
+    final googleAuth = account.authentication;
+
     final credential = GoogleAuthProvider.credential(
-      accessToken: auth.accessToken,
-      idToken: auth.idToken,
+      idToken: googleAuth.idToken,
     );
+
     await user.reauthenticateWithCredential(credential);
   }
 
   Future<void> signOut() async {
+    AppLockService.instance.unlock();
+
     await _googleSignIn.signOut();
     await _auth.signOut();
   }

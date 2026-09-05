@@ -4,11 +4,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../services/app_lock_service.dart';
+import '../../services/biometric_service.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../models/couple_model.dart';
 import '../../repositories/couple_repository.dart';
-import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/storage_service.dart';
 import '../../services/widget_service.dart';
@@ -38,6 +38,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _index = 0;
 
+  // Lưu lại settings mới nhất từ stream của couple để có thể khoá app đồng
+  // bộ (không cần gọi lại Firestore) mỗi khi app quay lại từ nền.
+  bool _pinEnabled = false;
+  bool _biometricEnabled = false;
+  bool _initialLockEvaluated = false;
+
   @override
   void initState() {
     super.initState();
@@ -53,7 +59,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
-      AppLockService.instance.lockIfEnabled();
+      AppLockService.instance.lockIfEnabled(
+        pinEnabled: _pinEnabled,
+        biometricEnabled: _biometricEnabled,
+      );
+      // Nếu app bị đưa xuống nền giữa lúc hộp thoại vân tay đang mở, huỷ nó
+      // đi để tránh plugin bị kẹt trạng thái ở lần mở lại sau.
+      BiometricService.instance.cancelAuthentication();
     }
   }
 
@@ -254,6 +266,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
 
         final couple = CoupleModel.fromFirestore(snapshot.data!);
+        _pinEnabled = couple.pinEnabled;
+        _biometricEnabled = couple.biometricEnabled;
+
+        if (!_initialLockEvaluated) {
+          _initialLockEvaluated = true;
+          // SỬA LỖI: trước đây chỉ khoá app khi app bị đưa xuống nền, nên mở
+          // app từ trạng thái tắt hẳn sẽ KHÔNG bị khoá dù đã bật PIN/vân tay.
+          // Giờ đánh giá khoá ngay khi có dữ liệu couple đầu tiên. Dùng
+          // addPostFrameCallback để không gọi notifyListeners() (bên trong
+          // lockIfEnabled) ngay giữa lúc widget này đang build.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            AppLockService.instance.lockIfEnabled(
+              pinEnabled: couple.pinEnabled,
+              biometricEnabled: couple.biometricEnabled,
+            );
+          });
+        }
 
         return AnimatedBuilder(
           animation: AppLockService.instance,
@@ -268,7 +297,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   onChanged: (value) => setState(() => _index = value),
                 ),
               ),
-              if (AppLockService.instance.locked) const AppLockOverlay(),
+              if (AppLockService.instance.locked)
+                AppLockOverlay(coupleId: couple.id),
             ],
           ),
         );
@@ -278,7 +308,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 }
 
 class AppLockOverlay extends StatefulWidget {
-  const AppLockOverlay({super.key});
+  final String coupleId;
+
+  const AppLockOverlay({super.key, required this.coupleId});
 
   @override
   State<AppLockOverlay> createState() => _AppLockOverlayState();
@@ -287,15 +319,58 @@ class AppLockOverlay extends StatefulWidget {
 class _AppLockOverlayState extends State<AppLockOverlay> {
   final _pin = TextEditingController();
   bool _busy = false;
+  bool _biometricReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometric();
+  }
+
+  @override
+  void dispose() {
+    _pin.dispose();
+    super.dispose();
+  }
+
+  Future<void> _checkBiometric() async {
+    // Chỉ hiện nút "Dùng sinh trắc học" khi máy thật sự hỗ trợ VÀ đã đăng ký
+    // vân tay/khuôn mặt — trước đây nút này luôn hiện vô điều kiện nên bấm
+    // vào là lỗi ngay trên máy chưa cài vân tay, tạo cảm giác "hay bị lỗi".
+    final ready = await BiometricService.instance.isBiometricReady();
+    if (mounted) setState(() => _biometricReady = ready);
+  }
 
   Future<void> _bio() async {
     setState(() => _busy = true);
-    final ok = await AppLockService.instance.unlockWithBiometric();
+    final result = await AppLockService.instance.unlockWithBiometric();
     if (mounted) setState(() => _busy = false);
-    if (!ok && mounted) {
+    final message = _messageFor(result);
+    if (message != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Xác thực sinh trắc học thất bại.')),
+        SnackBar(content: Text(message)),
       );
+    }
+  }
+
+  String? _messageFor(BiometricAuthResult result) {
+    switch (result) {
+      case BiometricAuthResult.success:
+        return null;
+      case BiometricAuthResult.cancelled:
+        return null; // Người dùng tự bấm huỷ, không cần báo lỗi.
+      case BiometricAuthResult.notAvailable:
+        return 'Thiết bị không hỗ trợ sinh trắc học. Hãy dùng PIN.';
+      case BiometricAuthResult.notEnrolled:
+        return 'Máy chưa đăng ký vân tay/khuôn mặt. Hãy dùng PIN.';
+      case BiometricAuthResult.lockedOut:
+        return 'Sai quá nhiều lần, thử lại sau ít phút hoặc dùng PIN.';
+      case BiometricAuthResult.permanentlyLockedOut:
+        return 'Sinh trắc học đã bị khoá do sai quá nhiều lần. Hãy mở khoá thiết bị bằng vân tay/khuôn mặt trong Cài đặt máy trước, hoặc dùng PIN.';
+      case BiometricAuthResult.passcodeNotSet:
+        return 'Thiết bị chưa đặt mã khoá màn hình. Hãy dùng PIN.';
+      case BiometricAuthResult.error:
+        return 'Xác thực sinh trắc học thất bại. Hãy dùng PIN.';
     }
   }
 
@@ -315,7 +390,9 @@ class _AppLockOverlayState extends State<AppLockOverlay> {
   Future<void> _forgot() async {
     setState(() => _busy = true);
     try {
-      await AppLockService.instance.recoverPinWithGoogle();
+      await AppLockService.instance.recoverPinWithGoogle(
+        coupleId: widget.coupleId,
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -346,9 +423,13 @@ class _AppLockOverlayState extends State<AppLockOverlay> {
                         fontSize: 22,
                         fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                const Text('Nhập PIN hoặc dùng vân tay / khuôn mặt.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white70)),
+                Text(
+                  _biometricReady
+                      ? 'Nhập PIN hoặc dùng vân tay / khuôn mặt.'
+                      : 'Nhập PIN để mở khoá.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white70),
+                ),
                 const SizedBox(height: 24),
                 TextField(
                   controller: _pin,
@@ -373,11 +454,13 @@ class _AppLockOverlayState extends State<AppLockOverlay> {
                     child: FilledButton(
                         onPressed: _busy ? null : _pinUnlock,
                         child: const Text('Mở khoá'))),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                    onPressed: _busy ? null : _bio,
-                    icon: const Icon(Icons.fingerprint),
-                    label: const Text('Dùng sinh trắc học')),
+                if (_biometricReady) ...[
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                      onPressed: _busy ? null : _bio,
+                      icon: const Icon(Icons.fingerprint),
+                      label: const Text('Dùng sinh trắc học')),
+                ],
                 TextButton(
                     onPressed: _busy ? null : _forgot,
                     child:
